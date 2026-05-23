@@ -157,6 +157,49 @@ async def _migrate_orphaned_threads(store, admin_user_id: str) -> int:
     return migrated
 
 
+async def _recover_stale_runs(store, *, timeout_seconds: int = 1800) -> int:
+    """Recover runs stuck in 'running' status from a previous process.
+
+    When the gateway process restarts (Docker restart, crash, OOM kill),
+    in-memory asyncio.Task references are lost. Runs that were 'running'
+    at the time never get their finally block executed, so they stay
+    'running' in the database forever.
+
+    This function finds runs whose ``updated_at`` is older than
+    *timeout_seconds* and marks them as ``error`` with a diagnostic message.
+
+    Default timeout: 30 minutes (1800s).
+    """
+    from datetime import UTC, datetime, timedelta
+
+    cutoff = (datetime.now(UTC) - timedelta(seconds=timeout_seconds)).isoformat()
+    try:
+        stale = await store.list_stale_running(older_than=cutoff)
+    except Exception:
+        logger.warning("Failed to query stale running runs (non-fatal)", exc_info=True)
+        return 0
+
+    recovered = 0
+    for run in stale:
+        run_id = run.get("run_id", "unknown")
+        try:
+            await store.update_status(
+                run_id,
+                "error",
+                error=(
+                    f"Run was stuck in 'running' status and has been stale for "
+                    f"more than {timeout_seconds}s. Likely caused by a previous "
+                    f"process restart or crash. Auto-recovered on startup."
+                ),
+            )
+            recovered += 1
+            logger.info("Recovered stale run %s (updated_at=%s)", run_id, run.get("updated_at"))
+        except Exception:
+            logger.warning("Failed to recover stale run %s", run_id, exc_info=True)
+
+    return recovered
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
@@ -182,6 +225,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize LangGraph runtime components (StreamBridge, RunManager, checkpointer, store)
     async with langgraph_runtime(app, startup_config):
         logger.info("LangGraph runtime initialised")
+
+        # Recover stale 'running' runs from a previous process lifecycle.
+        # Must run AFTER langgraph_runtime so app.state.run_store is available.
+        run_store = getattr(app.state, "run_store", None)
+        if run_store is not None:
+            recovered = await _recover_stale_runs(run_store)
+            if recovered:
+                logger.info("Recovered %d stale 'running' run(s) from previous process", recovered)
 
         # Check admin bootstrap state and migrate orphan threads after admin exists.
         # Must run AFTER langgraph_runtime so app.state.store is available for thread migration

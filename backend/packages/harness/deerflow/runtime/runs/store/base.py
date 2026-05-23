@@ -132,6 +132,21 @@ class RunStore(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def list_stale_running(
+        self,
+        *,
+        older_than: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return runs still marked 'running' whose last update is older than
+        the given ISO timestamp (defaults to now).
+
+        These are zombie runs: the worker process that owned the asyncio.Task
+        has exited (restart, crash, OOM kill) and the finally block never ran
+        to set a terminal status.
+        """
+        pass
+
+    @abc.abstractmethod
     async def aggregate_tokens_by_thread(self, thread_id: str, *, include_active: bool = False) -> dict[str, Any]:
         """Aggregate token usage for completed runs in a thread.
 

@@ -218,6 +218,27 @@ class RunRepository(RunStore):
             result = await session.execute(stmt)
             return [self._row_to_dict(r) for r in result.scalars()]
 
+    async def list_stale_running(self, *, older_than=None):
+        """Find runs stuck in 'running' status past a staleness threshold."""
+        if older_than is None:
+            before_dt = datetime.now(UTC)
+        elif isinstance(older_than, datetime):
+            before_dt = older_than
+        else:
+            before_dt = datetime.fromisoformat(older_than)
+        stmt = (
+            select(RunRow)
+            .where(RunRow.status == "running", RunRow.updated_at <= before_dt)
+            .order_by(RunRow.updated_at.asc())
+        )
+        async with self._sf() as session:
+            result = await session.execute(stmt)
+            return [self._row_to_dict(r) for r in result.scalars()]
+        )
+        async with self._sf() as session:
+            result = await session.execute(stmt)
+            return [self._row_to_dict(r) for r in result.scalars()]
+
     async def update_run_completion(
         self,
         run_id: str,

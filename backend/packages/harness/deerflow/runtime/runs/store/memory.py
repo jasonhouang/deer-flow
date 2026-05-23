@@ -105,6 +105,12 @@ class MemoryRunStore(RunStore):
         results.sort(key=lambda r: r["created_at"])
         return results
 
+    async def list_stale_running(self, *, older_than=None):
+        threshold = older_than or datetime.now(UTC).isoformat()
+        results = [r for r in self._runs.values() if r["status"] == "running" and r["updated_at"] <= threshold]
+        results.sort(key=lambda r: r["updated_at"])
+        return results
+
     async def aggregate_tokens_by_thread(self, thread_id: str, *, include_active: bool = False) -> dict[str, Any]:
         statuses = ("success", "error", "running") if include_active else ("success", "error")
         completed = [r for r in self._runs.values() if r["thread_id"] == thread_id and r.get("status") in statuses]
