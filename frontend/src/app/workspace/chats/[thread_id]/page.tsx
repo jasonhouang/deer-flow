@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelLeftOpen } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
@@ -16,6 +17,7 @@ import {
   MESSAGE_LIST_DEFAULT_PADDING_BOTTOM,
 } from "@/components/workspace/messages";
 import { ThreadContext } from "@/components/workspace/messages/context";
+import { useSidebar } from "@/components/ui/sidebar";
 import { ThreadTitle } from "@/components/workspace/thread-title";
 import { TodoList } from "@/components/workspace/todo-list";
 import { TokenUsageIndicator } from "@/components/workspace/token-usage-indicator";
@@ -32,6 +34,7 @@ import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
   const { t } = useI18n();
+  const { toggleSidebar, isMobile } = useSidebar();
   const { threadId, setThreadId, isNewThread, setIsNewThread, isMock } =
     useThreadChat();
   // `isNewThread` tracks whether the backend has the thread yet — gates the
@@ -139,6 +142,14 @@ export default function ChatPage() {
             )}
           >
             <div className="flex w-full items-center text-sm font-medium">
+              {isMobile && (
+                <button
+                  className="mr-2 flex size-7 shrink-0 items-center justify-center opacity-50 hover:opacity-100"
+                  onClick={toggleSidebar}
+                >
+                  <PanelLeftOpen size={18} />
+                </button>
+              )}
               <ThreadTitle threadId={threadId} thread={thread} />
             </div>
             <div className="flex items-center gap-2">

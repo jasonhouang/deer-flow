@@ -815,8 +815,8 @@ export function InputBox({
             >
               <ModelSelectorTrigger asChild>
                 <PromptInputButton>
-                  <div className="flex min-w-0 flex-col items-start text-left">
-                    <ModelSelectorName className="text-xs font-normal">
+                  <div className="flex min-w-0 max-w-[140px] flex-col items-start text-left">
+                    <ModelSelectorName className="truncate text-xs font-normal">
                       {selectedModel?.display_name}
                     </ModelSelectorName>
                   </div>
