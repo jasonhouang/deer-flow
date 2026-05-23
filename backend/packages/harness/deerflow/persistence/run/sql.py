@@ -234,10 +234,6 @@ class RunRepository(RunStore):
         async with self._sf() as session:
             result = await session.execute(stmt)
             return [self._row_to_dict(r) for r in result.scalars()]
-        )
-        async with self._sf() as session:
-            result = await session.execute(stmt)
-            return [self._row_to_dict(r) for r in result.scalars()]
 
     async def update_run_completion(
         self,
